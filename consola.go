@@ -18,6 +18,7 @@ const (
 )
 
 var DefaultTimeLayout = "15:04:05"
+var DefaultFieldSeparator = ":"
 
 func pad(s string, overallLen int) string {
 	padStr := " "
@@ -33,6 +34,9 @@ type ColoredFormatter struct {
 
 	// If set to true then do not print extra fields
 	ExcludeFields bool
+
+	// String value used to separate log fields
+	FieldSeparator string
 }
 
 func (f ColoredFormatter) Format(e *logrus.Entry) ([]byte, error) {
@@ -52,6 +56,11 @@ func (f ColoredFormatter) Format(e *logrus.Entry) ([]byte, error) {
 		tl = f.TimeLayout
 	}
 
+	fsep := DefaultFieldSeparator
+	if f.FieldSeparator != "" {
+		fsep = f.FieldSeparator
+	}
+
 	level := fmt.Sprintf("[%s%s\x1b[0m]", levelColor, e.Level.String())
 
 	fmt.Fprintf(buf, "[\x1b[90m%s\x1b[0m] %s  %s", e.Time.Format(tl), pad(level, 16), e.Message)
@@ -60,7 +69,7 @@ func (f ColoredFormatter) Format(e *logrus.Entry) ([]byte, error) {
 		flds := []string{}
 		for k, v := range e.Data {
 			if s, ok := v.(string); ok && k != "Level" && k != "Message" {
-				flds = append(flds, DarkGrey+k+Rst+":"+DarkGrey+s+Rst)
+				flds = append(flds, DarkGrey+k+Rst+fsep+DarkGrey+s+Rst)
 			}
 		}
 		fmt.Fprintf(buf, " \x1b[36m%s\x1b[0m", strings.Join(flds, " "))
