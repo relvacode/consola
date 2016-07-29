@@ -21,11 +21,10 @@ var DefaultTimeLayout = "15:04:05"
 var DefaultFieldSeparator = ":"
 
 func pad(s string, overallLen int) string {
-	padStr := " "
-	var padCountInt int
-	padCountInt = 1 + ((overallLen - len(padStr)) / len(padStr))
-	var retStr = s + strings.Repeat(padStr, padCountInt)
-	return retStr[:overallLen]
+	if overallLen-len(s) > 0 {
+		return s + strings.Repeat(" ", overallLen-len(s))
+	}
+	return s
 }
 
 type ColoredFormatter struct {
@@ -63,7 +62,7 @@ func (f ColoredFormatter) Format(e *logrus.Entry) ([]byte, error) {
 
 	level := fmt.Sprintf("[%s%s\x1b[0m]", levelColor, e.Level.String())
 
-	fmt.Fprintf(buf, "[\x1b[90m%s\x1b[0m] %s  %s", e.Time.Format(tl), pad(level, 16), e.Message)
+	fmt.Fprintf(buf, "[\x1b[90m%s\x1b[0m] %s  %s", e.Time.Format(tl), pad(level, 18), e.Message)
 
 	if !f.ExcludeFields {
 		flds := []string{}
