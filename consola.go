@@ -20,13 +20,6 @@ const (
 var DefaultTimeLayout = "15:04:05"
 var DefaultFieldSeparator = ":"
 
-func pad(s string, overallLen int) string {
-	if overallLen-len(s) > 0 {
-		return s + strings.Repeat(" ", overallLen-len(s))
-	}
-	return s
-}
-
 type ColoredFormatter struct {
 	// Sets the message time format
 	TimeLayout string
@@ -62,7 +55,7 @@ func (f ColoredFormatter) Format(e *logrus.Entry) ([]byte, error) {
 
 	level := fmt.Sprintf("[%s%s\x1b[0m]", levelColor, e.Level.String())
 
-	fmt.Fprintf(buf, "[\x1b[90m%s\x1b[0m] %s  %s", e.Time.Format(tl), pad(level, 18), e.Message)
+	fmt.Fprintf(buf, "[\x1b[90m%s\x1b[0m] %s  %s", e.Time.Format(tl), level, e.Message)
 
 	if !f.ExcludeFields {
 		flds := []string{}
@@ -70,6 +63,7 @@ func (f ColoredFormatter) Format(e *logrus.Entry) ([]byte, error) {
 			if s, ok := v.(string); ok && k != "Level" && k != "Message" {
 				flds = append(flds, DarkGrey+k+Rst+fsep+DarkGrey+s+Rst)
 			}
+
 		}
 		fmt.Fprintf(buf, " \x1b[36m%s\x1b[0m", strings.Join(flds, " "))
 	}
