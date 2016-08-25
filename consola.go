@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"strings"
+	"io"
 )
 
 // Terminal color constants
@@ -20,7 +20,60 @@ const (
 var DefaultTimeLayout = "15:04:05"
 var DefaultFieldSeparator = ":"
 
-type ColoredFormatter struct {
+type level struct {
+	logrus.Level
+}
+
+func (l level) Write(buf io.Writer, color bool) {
+	if !color {
+		fmt.Fprint(buf, "["+l.String()+"]")
+		return
+	}
+	var clr string
+	switch l.Level {
+	case logrus.ErrorLevel, logrus.PanicLevel, logrus.FatalLevel:
+		clr = Red
+	case logrus.WarnLevel:
+		clr = Yellow
+	case logrus.InfoLevel:
+		clr = Green
+	}
+	fmt.Fprint(buf, "["+clr+l.String()+Rst+"]")
+}
+
+type fields struct {
+	logrus.Fields
+}
+
+func (f fields) Write(buf io.Writer, color bool, sep string) {
+	l := len(f.Fields)
+	var n int
+	fmt.Fprint(buf, "[")
+	for k, v := range f.Fields {
+		n++
+		if s, ok := v.(string); ok && k != "Level" && k != "Message" {
+			if color {
+				fmt.Fprint(buf, DarkGrey+k+Rst+sep+DarkGrey+s+Rst)
+			} else {
+				fmt.Fprint(buf, k+sep+s)
+			}
+			if l != n {
+				fmt.Fprint(buf, " ")
+			}
+		}
+	}
+	fmt.Fprint(buf, "]")
+}
+
+func NewFormatter() logrus.Formatter {
+	return &Formatter{}
+}
+
+func NewColoredFormatter() logrus.Formatter {
+	return &Formatter{Color: true}
+}
+
+type Formatter struct {
 	// Sets the message time format
 	TimeLayout string
 
@@ -29,43 +82,30 @@ type ColoredFormatter struct {
 
 	// String value used to separate log fields
 	FieldSeparator string
+
+	// Enable color
+	Color bool
 }
 
-func (f ColoredFormatter) Format(e *logrus.Entry) ([]byte, error) {
+func (f Formatter) Format(e *logrus.Entry) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	var levelColor string
-	switch e.Level {
-	case logrus.ErrorLevel, logrus.PanicLevel, logrus.FatalLevel:
-		levelColor = Red
-	case logrus.WarnLevel:
-		levelColor = Yellow
-	case logrus.InfoLevel:
-		levelColor = Green
-	}
-	tl := DefaultTimeLayout
+	layout := DefaultTimeLayout
 	if f.TimeLayout != "" {
-		tl = f.TimeLayout
+		layout = f.TimeLayout
 	}
 
-	fsep := DefaultFieldSeparator
+	sep := DefaultFieldSeparator
 	if f.FieldSeparator != "" {
-		fsep = f.FieldSeparator
+		sep = f.FieldSeparator
 	}
 
-	level := fmt.Sprintf("[%s%s\x1b[0m]", levelColor, e.Level.String())
-
-	fmt.Fprintf(buf, "[\x1b[90m%s\x1b[0m] %s  %s", e.Time.Format(tl), level, e.Message)
+	fmt.Fprint(buf, e.Time.Format(layout), " ")
+	level{e.Level}.Write(buf, f.Color)
+	fmt.Fprint(buf, " ", e.Message, " ")
 
 	if !f.ExcludeFields {
-		flds := []string{}
-		for k, v := range e.Data {
-			if s, ok := v.(string); ok && k != "Level" && k != "Message" {
-				flds = append(flds, DarkGrey+k+Rst+fsep+DarkGrey+s+Rst)
-			}
-
-		}
-		fmt.Fprintf(buf, " \x1b[36m%s\x1b[0m", strings.Join(flds, " "))
+		fields{e.Data}.Write(buf, f.Color, sep)
 	}
 
 	fmt.Fprint(buf, "\n")
