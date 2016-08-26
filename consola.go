@@ -25,30 +25,40 @@ type level struct {
 }
 
 func (l level) Write(buf io.Writer, color bool) {
-	if !color {
-		fmt.Fprint(buf, "["+l.String()+"]")
-		return
+	var str = fmt.Sprintf("%-7s", l.String())
+	if color {
+		var clr string
+		switch l.Level {
+		case logrus.ErrorLevel, logrus.PanicLevel, logrus.FatalLevel:
+			clr = Red
+		case logrus.WarnLevel:
+			clr = Yellow
+		case logrus.InfoLevel:
+			clr = Green
+		}
+		str = clr + str + Rst
 	}
-	var clr string
-	switch l.Level {
-	case logrus.ErrorLevel, logrus.PanicLevel, logrus.FatalLevel:
-		clr = Red
-	case logrus.WarnLevel:
-		clr = Yellow
-	case logrus.InfoLevel:
-		clr = Green
-	}
-	fmt.Fprint(buf, "["+clr+l.String()+Rst+"]")
+	fmt.Fprint(buf, str, " ")
 }
 
 type fields struct {
 	logrus.Fields
 }
 
+func (f fields) WritePrefix(buf io.Writer, color bool, prefix string) {
+	if pk, ok := f.Fields[prefix]; ok {
+		var str string = fmt.Sprint(pk)
+		if color {
+			str = DarkGrey + str + Rst
+		}
+		fmt.Fprint(buf, str, "\t")
+		delete(f.Fields, prefix)
+	}
+}
+
 func (f fields) Write(buf io.Writer, color bool, sep string) {
 	l := len(f.Fields)
 	var n int
-	fmt.Fprint(buf, "[")
 	for k, v := range f.Fields {
 		n++
 		if s, ok := v.(string); ok && k != "Level" && k != "Message" {
@@ -62,15 +72,6 @@ func (f fields) Write(buf io.Writer, color bool, sep string) {
 			}
 		}
 	}
-	fmt.Fprint(buf, "]")
-}
-
-func NewFormatter() logrus.Formatter {
-	return &Formatter{}
-}
-
-func NewColoredFormatter() logrus.Formatter {
-	return &Formatter{Color: true}
 }
 
 type Formatter struct {
@@ -82,6 +83,10 @@ type Formatter struct {
 
 	// String value used to separate log fields
 	FieldSeparator string
+
+	PrimaryPrefixField string
+
+	SecondaryPrefixField string
 
 	// Enable color
 	Color bool
@@ -100,12 +105,22 @@ func (f Formatter) Format(e *logrus.Entry) ([]byte, error) {
 		sep = f.FieldSeparator
 	}
 
+	fields := fields{e.Data}
+
 	fmt.Fprint(buf, e.Time.Format(layout), " ")
 	level{e.Level}.Write(buf, f.Color)
-	fmt.Fprint(buf, " ", e.Message, " ")
+
+	if f.PrimaryPrefixField != "" {
+		fields.WritePrefix(buf, f.Color, f.PrimaryPrefixField)
+	}
+	if f.SecondaryPrefixField != "" {
+		fields.WritePrefix(buf, f.Color, f.SecondaryPrefixField)
+	}
+
+	fmt.Fprint(buf, e.Message, " ")
 
 	if !f.ExcludeFields {
-		fields{e.Data}.Write(buf, f.Color, sep)
+		fields.Write(buf, f.Color, sep)
 	}
 
 	fmt.Fprint(buf, "\n")
