@@ -17,7 +17,7 @@ const (
 	DarkGrey = "\x1b[90m"
 )
 
-var DefaultTimeLayout = "15:04:05"
+var DefaultTimeLayout = "15:04:05 02/01"
 var DefaultFieldSeparator = ":"
 
 type level struct {
