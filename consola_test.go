@@ -1,6 +1,6 @@
 package consola
 
-import "github.com/Sirupsen/logrus"
+import "github.com/sirupsen/logrus"
 
 func Example() {
 	log := logrus.New()
