@@ -107,7 +107,7 @@ func (f Formatter) Format(e *logrus.Entry) ([]byte, error) {
 
 	fields := fields{e.Data}
 
-	fmt.Fprint(buf, e.Time.Format(layout), " ")
+	fmt.Fprint(buf, e.Time.Local().Format(layout), " ")
 	level{e.Level}.Write(buf, f.Color)
 
 	if f.PrimaryPrefixField != "" {
